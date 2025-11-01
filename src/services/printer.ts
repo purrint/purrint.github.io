@@ -155,7 +155,7 @@ export async function printImage(imageData: ImageData) {
   commands = new Uint8Array([
     ...commands,
     ...formatCommand(Command.CONTROL_LATTICE, Lattice.FINISH),
-    ...formatCommand(Command.FEED_PAPER, 100),
+    ...formatCommand(Command.FEED_PAPER, 50),
   ]);
 
   for (let i = 0; i < commands.length; i += 64) {
