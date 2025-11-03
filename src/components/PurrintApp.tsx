@@ -163,18 +163,13 @@ export default function PurrintApp() {
 
   return (
     <>
-      <img
-        src={icon}
-        className="mascot shadow"
-        alt="PURRINT"
-        height="150"
-        width="150"
-      />
+      <img src={icon} className="mascot shadow" alt="PURRINT" />
 
       {!isBluetoothAvailable && (
         <div className="compatibility-notice">
-          Bluetooth is not available in this browser.<br />Try a Chrome-based
-          browser instead.
+          Bluetooth is not available in this browser.
+          <br />
+          Try a Chrome-based browser instead.
         </div>
       )}
 
@@ -205,9 +200,7 @@ export default function PurrintApp() {
             .filter(Boolean)
             .join(" ")}
           onClick={
-            mode === "image"
-              ? () => imageInput.current?.click()
-              : undefined
+            mode === "image" ? () => imageInput.current?.click() : undefined
           }
           onDrop={mode === "image" ? onDrop : undefined}
           onDragOver={
@@ -220,7 +213,9 @@ export default function PurrintApp() {
         >
           {mode === "image" && (
             <div id="preview-text">
-              Select image<br />(or paste or drop here)
+              Select image
+              <br />
+              (or paste or drop here)
             </div>
           )}
 
