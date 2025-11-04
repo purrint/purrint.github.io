@@ -8,6 +8,7 @@
 
 body {
   font-family: "IBM VGA 9x16", "Courier New", Courier, monospace;
+  text-rendering: geometricPrecision;
   background: linear-gradient(to top, #ffd9fc, #ffe9e3);
   display: flex;
   flex-direction: column;
@@ -18,10 +19,16 @@ body {
 
 #footer {
   margin: auto 20px 0 20px;
-  padding-top: 40px;
+  padding: 40px 0 10px 0;
   width: 100%;
   text-align: center;
   flex-grow: 0;
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+
+  a {
+    color: inherit;
+  }
 }
 
 #root {
@@ -30,8 +37,8 @@ body {
 
 .mascot {
   text-align: center;
-  margin-top: 5px;
-  margin-bottom: 40px;
+  margin-top: 20px;
+  margin-bottom: 30px;
   filter: drop-shadow(6px 6px rgba(0, 0, 0, 0.4));
   width: 156px;
   height: 156px;
@@ -40,9 +47,9 @@ body {
 .receipt {
   background-color: #fff;
   box-sizing: border-box;
-  padding: 20px;
-  margin-bottom: 40px;
-  border: 6px solid #000;
+  padding: 5px;
+  margin-bottom: 20px;
+  border: 3px solid #000;
   filter: drop-shadow(6px 6px rgba(0, 0, 0, 0.4));
 }
 
@@ -57,10 +64,9 @@ body {
   font-family: "IBM VGA 9x16", "Courier New", Courier, monospace;
   background-color: #fff;
   color: #000;
-  border: 6px solid #000;
-  padding: 8px 16px;
-  font-size: 18px;
-  letter-spacing: 1px;
+  border: 3px solid #000;
+  padding: 9px 3px 9px 9px;
+  font-size: 16px;
   filter: none;
   margin: 0;
   translate: 0;
@@ -82,20 +88,19 @@ body {
   padding: 20px;
   margin: 40px auto 40px auto;
   text-align: center;
-  max-width: 192px;
+  max-width: 384px;
   box-sizing: border-box;
 }
 
 #preview-container {
   box-sizing: content-box;
   width: 384px;
-  min-height: 200px;
+  min-height: 180px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   background-color: #fff;
-  border: 6px dashed #000;
 
   canvas {
     width: 100%;
@@ -115,7 +120,7 @@ body {
 }
 
 #preview-text {
-  font-size: 18px;
+  font-size: 16px;
   text-align: center;
   color: #000;
   width: 100%;
@@ -143,7 +148,7 @@ body {
   padding: 16px;
   font-family: "IBM VGA 9x16", "Courier New", Courier, monospace;
   font-size: 16px;
-  line-height: 1.4;
+  line-height: 1.0;
   border: 0;
   background: transparent;
   color: #000;
@@ -161,10 +166,10 @@ button {
   background-color: #000;
   color: #fff;
   border: none;
-  padding: 12px 18px;
+  padding: 12px 10px 12px 18px;
   cursor: pointer;
-  font-size: 24px;
-  letter-spacing: 2px;
+  font-size: 16px;
+  letter-spacing: 5px;
   filter: drop-shadow(6px 6px rgba(0, 0, 0, 0.4));
   margin: auto;
 }
@@ -184,34 +189,4 @@ button:disabled {
 
 input[type="file"] {
   display: none;
-}
-
-@media (max-width: 500px) {
-  #preview-container {
-    width: 192px;
-  }
-}
-
-@media (max-height: 600px) {
-  .mascot {
-    width: 78px;
-    height: 78px;
-  }
-
-  .receipt {
-    border: 3px solid #000;
-  }
-
-  .mode-toggle button {
-    border: 3px solid #000;
-  }
-
-  #preview-container {
-    border: 3px dashed #000;
-  }
-
-  button, .mode-toggle button {
-    padding: 8px 12px;
-    font-size: 16px;
-  }
 }

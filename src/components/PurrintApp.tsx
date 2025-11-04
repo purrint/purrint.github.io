@@ -167,9 +167,7 @@ export default function PurrintApp() {
 
       {!isBluetoothAvailable && (
         <div className="compatibility-notice">
-          Bluetooth is not available in this browser.
-          <br />
-          Try a Chrome-based browser instead.
+          PURRINT works only on Android and desktop Chrome-based browsers.
         </div>
       )}
 
@@ -213,7 +211,7 @@ export default function PurrintApp() {
         >
           {mode === "image" && (
             <div id="preview-text">
-              Select image
+              <u>Select image</u>
               <br />
               (or paste or drop here)
             </div>
