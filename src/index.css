@@ -8,13 +8,16 @@
 
 body {
   font-family: "IBM VGA 9x16", "Courier New", Courier, monospace;
-  text-rendering: geometricPrecision;
   background: linear-gradient(to top, #ffd9fc, #ffe9e3);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   margin: 0;
   align-items: center;
+  text-rendering: geometricPrecision !important;
+  font-smooth: never !important;
+  -webkit-font-smoothing : none !important;
+  -moz-osx-font-smoothing: grayscale !important;
 }
 
 #footer {
@@ -25,6 +28,9 @@ body {
   flex-grow: 0;
   color: rgba(0, 0, 0, 0.6);
   font-size: 12px;
+  font-smooth: auto !important;
+  -webkit-font-smoothing: auto !important;
+  -moz-osx-font-smoothing: auto !important;
 
   a {
     color: inherit;
@@ -120,7 +126,6 @@ body {
 }
 
 #preview-text {
-  font-size: 16px;
   text-align: center;
   color: #000;
   width: 100%;
@@ -141,17 +146,11 @@ body {
 }
 
 .text-input {
-  flex: 1 1 auto;
-  width: 100%;
   box-sizing: border-box;
-  min-height: 120px;
-  padding: 16px;
+  width: 100%;
+  min-height: 180px;
   font-family: "IBM VGA 9x16", "Courier New", Courier, monospace;
   font-size: 16px;
-  line-height: 1.0;
-  border: 0;
-  background: transparent;
-  color: #000;
   white-space: pre-wrap;
   word-break: break-word;
   resize: none;
@@ -159,6 +158,7 @@ body {
   overflow: hidden;
   box-shadow: none;
   appearance: none;
+  border: none;
 }
 
 button {
