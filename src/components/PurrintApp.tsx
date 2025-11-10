@@ -7,7 +7,7 @@ import icon from "../assets/icon.svg";
 const WIDTH = 384;
 const FONT_FAMILY = `"IBM VGA 9x16", "Courier New", Courier, monospace`;
 const FONT_SIZE = 16;
-const LINE_HEIGHT = 1.0;
+const LINE_HEIGHT_RATIO = 1.15;
 
 type Mode = "image" | "text";
 
@@ -102,6 +102,7 @@ export default function PurrintApp() {
         console.error("Printing failed:", error);
         alert("Printing failed. See console for details.");
       }
+      return;
     }
 
     if (!photoImageData) {
@@ -215,10 +216,11 @@ async function renderTextToCanvas(
   canvas: HTMLCanvasElement
 ): Promise<ImageData> {
   const ctx = canvas.getContext("2d")!;
-  const lines = splitText({ ctx, text, justify: false, width: WIDTH });
   ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
+  const lines = splitText({ ctx, text, justify: false, width: WIDTH });
   canvas.width = WIDTH;
-  canvas.height = lines.length * FONT_SIZE * LINE_HEIGHT;
+  const lineHeightPx = FONT_SIZE * LINE_HEIGHT_RATIO;
+  canvas.height = Math.max(lines.length, 1) * lineHeightPx;
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -230,7 +232,7 @@ async function renderTextToCanvas(
     fontSize: FONT_SIZE,
     height: canvas.height,
     font: FONT_FAMILY,
-    lineHeight: LINE_HEIGHT,
+    lineHeight: lineHeightPx,
     align: "left",
     vAlign: "top",
   });
