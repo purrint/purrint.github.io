@@ -1,17 +1,17 @@
 [tools]
-bun = "latest"
+deno = "latest"
 
 [settings]
 experimental = true
 
 [hooks]
-postinstall = "bun install"
+postinstall = "deno install"
 
 [tasks.build]
-run = "bun tsc && bun vite build"
+run = "deno run -A npm:tsc && deno run -A npm:vite build"
 
 [tasks.dev]
-run = "bun vite"
+run = "deno run -A npm:vite"
 
 [tasks.preview]
-run = "bun vite preview"
+run = "deno run -A npm:vite preview"

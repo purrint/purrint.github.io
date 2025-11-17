@@ -1,7 +1,0 @@
-[[tools.bun]]
-version = "1.2.21"
-backend = "core:bun"
-
-[tools.bun.platforms.macos-arm64]
-checksum = "blake3:b5824ab4bf0afba1d27d55d4cbec1696c3d1070f6982cbf6b4fa0489892ec931"
-size = 22056420
