@@ -70,10 +70,8 @@ export default function PurrintApp() {
         }
       }
     }
-    window.addEventListener("paste", onPaste);
-    return () => {
-      window.removeEventListener("paste", onPaste);
-    };
+    addEventListener("paste", onPaste);
+    return () => removeEventListener("paste", onPaste);
   }, []);
 
   useEffect(() => {
@@ -93,7 +91,7 @@ export default function PurrintApp() {
       }
 
       try {
-        const imageData = await renderTextToCanvas(
+        const imageData = renderTextToCanvas(
           textInput,
           previewCanvas.current!
         );
@@ -118,42 +116,58 @@ export default function PurrintApp() {
     }
   }
 
+
+  const modeToggleButtonBase =
+    "font-ibm border-[3px] border-black p-3 text-base leading-none";
+
   return (
     <>
-      <img src={icon} className="mascot shadow" alt="PURRINT" />
+      <img
+        src={icon}
+        className="h-[156px] w-[156px] drop-shadow-purr"
+        alt="PURRINT"
+      />
 
       {!isBluetoothAvailable && (
-        <div className="compatibility-notice">
+        <div className="mx-auto my-10 box-border max-w-[384px] border-[3px] border-dashed border-black bg-[#fcc] p-5 text-center">
           PURRINT works only on Android and desktop Chrome-based browsers.
         </div>
       )}
 
-      <div className="mode-toggle">
+      <div className="flex justify-center gap-3">
         <button
           type="button"
-          className={mode === "image" ? "active" : ""}
+          className={[
+            modeToggleButtonBase,
+            mode === "image" ? "bg-black text-white" : "bg-white text-black",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           onClick={() => setMode("image")}
         >
           Image
         </button>
         <button
           type="button"
-          className={mode === "text" ? "active" : ""}
+          className={[
+            modeToggleButtonBase,
+            mode === "text" ? "bg-black text-white" : "bg-white text-black",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           onClick={() => setMode("text")}
         >
           Text
         </button>
       </div>
 
-      <div className="receipt">
+      <div className="box-border border-[3px] border-black bg-white p-[5px] drop-shadow-purr">
         <div
           id="preview-container"
           className={[
-            mode === "image" && photoImageData ? "has-image" : "",
-            mode === "text" ? "text-mode" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+            "flex w-[384px] min-h-[180px] bg-white box-content",
+            mode === "image" ? "cursor-pointer items-center justify-center" : "cursor-text items-stretch justify-start",
+          ].join(" ")}
           onClick={
             mode === "image" ? () => imageInput.current?.click() : undefined
           }
@@ -166,8 +180,11 @@ export default function PurrintApp() {
               : undefined
           }
         >
-          {mode === "image" && (
-            <div id="preview-text">
+          {mode === "image" && !photoImageData && (
+            <div
+              id="preview-text"
+              className="w-full pointer-events-none text-center text-black"
+            >
               <u>Select image</u>
               <br />
               (or paste or drop here)
@@ -177,7 +194,7 @@ export default function PurrintApp() {
           {mode === "text" && (
             <textarea
               ref={textArea}
-              className="text-input"
+              className="pl-[1px] min-h-[180px] w-full resize-none outline-none"
               placeholder="Type your message here…"
               value={textInput}
               onChange={(event) => setTextInput(event.target.value)}
@@ -187,7 +204,12 @@ export default function PurrintApp() {
           <canvas
             id="preview"
             ref={previewCanvas}
-            style={mode === "text" ? { display: "none" } : undefined}
+            className={[
+              "h-auto w-full pointer-events-none",
+              photoImageData ? "block" : "hidden",
+            ]
+              .filter(Boolean)
+              .join(" ")}
           ></canvas>
         </div>
       </div>
@@ -196,12 +218,14 @@ export default function PurrintApp() {
         type="file"
         id="image-input"
         accept="image/*"
-        style={{ display: "none" }}
+        className="hidden"
         ref={imageInput}
         onChange={onImageInputChange}
       />
       <button
         id="print-button"
+        type="button"
+        className="font-ibm bg-black text-white py-3 pl-5 pr-3 text-base tracking-widest drop-shadow-purr disabled:bg-neutral-700 disabled:text-neutral-300 disabled:cursor-not-allowed disabled:drop-shadow-none disabled:translate-x-0 disabled:translate-y-0 hover:drop-shadow-[2px_2px_rgba(0,0,0,0.4)] hover:translate-x-1 hover:translate-y-1"
         onClick={onPrintClick}
         disabled={!isBluetoothAvailable}
       >
@@ -211,10 +235,10 @@ export default function PurrintApp() {
   );
 }
 
-async function renderTextToCanvas(
+function renderTextToCanvas(
   text: string,
   canvas: HTMLCanvasElement
-): Promise<ImageData> {
+): ImageData {
   const ctx = canvas.getContext("2d")!;
   ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
   const lines = splitText({ ctx, text, justify: false, width: WIDTH });

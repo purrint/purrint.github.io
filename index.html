@@ -10,8 +10,15 @@
     <link rel="stylesheet" href="./src/index.css" />
     <script type="module" src="/src/main.tsx"></script>
   </head>
-  <body>
-    <div id="root"></div>
-    <div id="footer">Made by <a href="https://github.com/JanPokorny">Jan Pokorný</a> | <a href="https://github.com/purrint/purrint.github.io">GitHub repo</a> | <a href="https://int10h.org/oldschool-pc-fonts/">Font by VileR</a></div>
+  <body class="m-0 flex min-h-screen flex-col items-center bg-[linear-gradient(to_top,#ffd9fc,#ffe9e3)] font-ibm">
+    <div id="root" class="text-retro flex w-full flex-1 flex-col items-center justify-center gap-5 py-5 text-center"></div>
+    <div id="footer" class="mx-5 mt-auto w-full shrink-0 pt-10 pb-[10px] text-center text-[12px] text-black/60">
+      Made by
+      <a class="text-current underline" href="https://github.com/JanPokorny">Jan Pokorný</a>
+      |
+      <a class="text-current underline" href="https://github.com/purrint/purrint.github.io">GitHub repo</a>
+      |
+      <a class="text-current underline" href="https://int10h.org/oldschool-pc-fonts/">Font by VileR</a>
+    </div>
   </body>
 </html>
