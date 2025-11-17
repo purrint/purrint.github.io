@@ -8,7 +8,7 @@ experimental = true
 postinstall = "deno install"
 
 [tasks.build]
-run = "deno run -A npm:tsc && deno run -A npm:vite build"
+run = "deno run -A npm:typescript/tsc && deno run -A npm:vite build"
 
 [tasks.dev]
 run = "deno run -A npm:vite"
