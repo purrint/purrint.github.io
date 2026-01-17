@@ -104,7 +104,7 @@ function flipImageDataHorizontally(imageData: ImageData): ImageData {
 export async function printImage(imageData: ImageData) {
   if (!device) {
     device = await navigator.bluetooth.requestDevice({
-      filters: [{ name: "MX06" }],
+      filters: [{ namePrefix: "MX" }],
       optionalServices: ["0000ae30-0000-1000-8000-00805f9b34fb"],
     });
   }
