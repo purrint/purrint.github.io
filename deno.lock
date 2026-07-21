@@ -6,7 +6,8 @@
     "npm:@types/web-bluetooth@^0.0.21": "0.0.21",
     "npm:@vitejs/plugin-react@^5.0.3": "5.1.1_vite@7.1.5__picomatch@4.0.3_@babel+core@7.28.5",
     "npm:autoprefixer@^10.4.22": "10.4.22_postcss@8.5.6",
-    "npm:canvas-txt@^4.1.1": "4.1.1",
+    "npm:html-to-image@^1.11.13": "1.11.13",
+    "npm:marked@^18.0.6": "18.0.6",
     "npm:postcss@^8.5.6": "8.5.6",
     "npm:react-dom@^19.1.1": "19.2.0_react@19.2.0",
     "npm:react@^19.1.1": "19.2.0",
@@ -1430,9 +1431,6 @@
     "caniuse-lite@1.0.30001755": {
       "integrity": "sha512-44V+Jm6ctPj7R52Na4TLi3Zri4dWUljJd+RDm+j8LtNCc/ihLCT+X1TzoOAkRETEWqjuLnh9581Tl80FvK7jVA=="
     },
-    "canvas-txt@4.1.1": {
-      "integrity": "sha512-kD47Nh9PC7HiZ+MHZn9/DKNbnMGT+xuLZHLOgbcWZo84jo7gRDTFCBqpehZBT+OFSSpYw2GKHl5hPvDa1q4y8A=="
-    },
     "chokidar@3.6.0": {
       "integrity": "sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==",
       "dependencies": [
@@ -1868,6 +1866,7 @@
         "package-json-from-dist",
         "path-scurry"
       ],
+      "deprecated": true,
       "bin": true
     },
     "glob@7.2.3": {
@@ -1924,6 +1923,9 @@
       "dependencies": [
         "function-bind"
       ]
+    },
+    "html-to-image@1.11.13": {
+      "integrity": "sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg=="
     },
     "idb@7.1.1": {
       "integrity": "sha512-gchesWBzyvGHRO9W8tzUWFDycow5gwjvFKfyV9FF32Y7F50yZMp7mP+T2mJIWFx49zicqyC4uefHM17o6xKIVQ=="
@@ -2211,6 +2213,10 @@
       "dependencies": [
         "sourcemap-codec"
       ]
+    },
+    "marked@18.0.6": {
+      "integrity": "sha512-MrV5puXBfuiy6wl6DLaq3BtIJQAJToAd5zt/ZKhRfGRAuFPALE7/4Y7jnxRQoEgK/pBgurGqLyAuRgZ2xOjr6w==",
+      "bin": true
     },
     "math-intrinsics@1.1.0": {
       "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="
@@ -3254,7 +3260,8 @@
         "npm:@types/web-bluetooth@^0.0.21",
         "npm:@vitejs/plugin-react@^5.0.3",
         "npm:autoprefixer@^10.4.22",
-        "npm:canvas-txt@^4.1.1",
+        "npm:html-to-image@^1.11.13",
+        "npm:marked@^18.0.6",
         "npm:postcss@^8.5.6",
         "npm:react-dom@^19.1.1",
         "npm:react@^19.1.1",

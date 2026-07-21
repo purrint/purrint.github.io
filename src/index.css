@@ -10,6 +10,62 @@
   font-display: swap;
 }
 
+/* Tailwind preflight resets these; restore for printed Markdown */
+.markdown {
+  overflow-wrap: break-word;
+}
+/* integer multiples of the 16px bitmap font stay on the pixel grid; no bold —
+   synthetic bold smears at large sizes */
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 {
+  font-weight: normal;
+  margin: 0.5em 0;
+}
+.markdown h1 {
+  /* banner style: reads top-to-bottom, runs down the paper; 24em × line-height 1
+     = 384px column = full paper width (margin cancels the 1px caret padding);
+     rem margins — em would scale with the banner (192px gaps) */
+  font-size: 24em;
+  line-height: 1;
+  writing-mode: vertical-lr;
+  /* orthogonal flows cap their line length at the viewport height, wrapping
+     long titles into clipped columns; max-content keeps it one line */
+  height: max-content;
+  margin: 0.5rem 0 0.5rem -1px;
+}
+.markdown h2 { font-size: 4em; }
+.markdown h3 { font-size: 3em; }
+.markdown h4 { font-size: 2em; }
+/* body-sized headings need the crisp shadow-bold to stand out at all */
+.markdown h5, .markdown h6 {
+  text-shadow: 1px 0 currentColor;
+}
+.markdown p, .markdown pre, .markdown table { margin: 0.5em 0; }
+.markdown ul { list-style: disc; margin: 0.5em 0; padding-left: 1.5em; }
+/* wider than ul: "10." markers hang left of the padding edge and would clip */
+.markdown ol { list-style: decimal; margin: 0.5em 0; padding-left: 2.5em; }
+.markdown blockquote { border-left: 4px solid #000; padding-left: 0.5em; margin: 0.5em 0; }
+.markdown hr { border-top: 3px solid #000; margin: 0.5em 0; }
+.markdown pre { white-space: pre-wrap; font-family: inherit; border: 1px solid #000; padding: 2px 4px; }
+.markdown code {
+  font-family: inherit;
+  border: 1px solid #000;
+  padding: 0 2px;
+}
+.markdown pre code { border: none; padding: 0; }
+.markdown a { text-decoration: underline; }
+/* bitmap font: synthetic bold thresholds unevenly, synthetic italic looks mangled */
+.markdown strong, .markdown b {
+  font-weight: normal;
+  text-shadow: 1px 0 currentColor;
+}
+.markdown em, .markdown i {
+  font-style: normal;
+  text-decoration: underline;
+}
+.markdown th, .markdown td { border: 1px solid #000; padding: 0 0.25em; }
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+
 @layer utilities {
   .text-retro {
     text-rendering: geometricPrecision;
