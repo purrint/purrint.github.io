@@ -7,7 +7,9 @@ import icon from "../assets/icon.svg";
 
 const WIDTH = 384;
 const FONT_SIZE = 16;
-const LINE_HEIGHT_RATIO = 1.15;
+// 18px line boxes: fractional ones (16 × 1.15 = 18.4) put every other baseline
+// on a half pixel, which the bitmap font renders as alternately fat and thin rows
+const LINE_HEIGHT_RATIO = 1.125;
 
 type Mode = "image" | "text";
 
@@ -324,6 +326,28 @@ export default function PurrintApp() {
   );
 }
 
+// html-to-image rewrites every copied font-size to `floor(size) - 0.1` as a
+// guard against text clipping in its SVG snapshot. That renders 16px text at
+// 15.9px, so the 9px glyph advance becomes 8.94px: identical letters creep off
+// the pixel grid and the threshold below turns their stems 1px or 2px wide,
+// banding the preview into light and dark stripes. We embed the exact font, so
+// nothing can reflow — copy every property except font-size and inline the real
+// sizes ourselves.
+function styleProperties(): string[] {
+  return Array.from(getComputedStyle(document.documentElement)).filter(
+    (property) => property !== "font-size"
+  );
+}
+
+function inlineFontSizes(root: HTMLElement) {
+  const elements = [root, ...root.querySelectorAll<HTMLElement>("*")];
+  // measure first: writing a size back changes what em-based children compute to
+  const sizes = elements.map((element) => getComputedStyle(element).fontSize);
+  elements.forEach((element, index) => {
+    element.style.fontSize = sizes[index];
+  });
+}
+
 async function renderText(text: string): Promise<ImageData> {
   // offscreen positioning must live on a wrapper: html-to-image clones the
   // target's computed styles, so left:-9999px on the target itself would
@@ -344,10 +368,12 @@ async function renderText(text: string): Promise<ImageData> {
         img.decode().catch(() => img.remove())
       )
     );
+    inlineFontSizes(container);
     const rendered = await toCanvas(container, {
       width: WIDTH,
       backgroundColor: "#fff",
       pixelRatio: 1,
+      includeStyleProperties: styleProperties(),
     });
     const containerBox = container.getBoundingClientRect();
     const imageBoxes = Array.from(container.querySelectorAll("img")).map(
