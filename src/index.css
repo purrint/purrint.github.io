@@ -10,69 +10,139 @@
   font-display: swap;
 }
 
-/* Tailwind preflight resets these; restore for printed Markdown */
+/* Roboto and Roboto Slab (Apache License 2.0, Google Fonts): the proportional
+   faces behind the medium/large text sub-modes. Self-hosted rather than loaded
+   from Google so the PWA keeps working offline and html-to-image can inline the
+   files from our own origin. Variable weight, latin + latin-ext subsets. */
+@font-face {
+  font-family: "Roboto";
+  src: url("./assets/Roboto-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Roboto";
+  src: url("./assets/Roboto-latin-ext.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Roboto Slab";
+  src: url("./assets/RobotoSlab-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Roboto Slab";
+  src: url("./assets/RobotoSlab-latin-ext.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Tailwind preflight resets these; restore for printed Markdown.
+   Everything below is em-based and written in logical properties: `large` turns
+   the whole page sideways with writing-mode, and logical margins/borders stack
+   its lines across the paper the way the upright modes stack theirs down it.
+   The em units are also what let fitBanner() solve for the font size by
+   scaling — see PurrintApp.tsx. */
 .markdown {
   overflow-wrap: break-word;
 }
-/* integer multiples of the 16px bitmap font stay on the pixel grid; no bold —
-   synthetic bold smears at large sizes */
-.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 {
-  font-weight: normal;
-  /* rem, not em: 0.5em under a 4em heading is a 32px gap, and only below it —
-     the first-child rule drops the matching one above. line-height 1 for the
-     same reason, since a 64px heading's leading is another 4.8px of air */
-  margin: 0.5rem 0;
-  line-height: 1;
-}
-.markdown h1 {
-  /* banner style: reads top-to-bottom, runs down the paper; 24em × line-height 1
-     = 384px column = full paper width (margin cancels the 1px caret padding) */
-  font-size: 24em;
-  writing-mode: vertical-lr;
-  /* orthogonal flows cap their line length at the viewport height, wrapping
-     long titles into clipped columns; max-content keeps it one line */
-  height: max-content;
-  margin: 0.5rem 0 0.5rem -1px;
-}
-.markdown h2 { font-size: 4em; }
-.markdown h3 { font-size: 3em; }
-.markdown h4 { font-size: 2em; }
-/* body-sized headings need the crisp shadow-bold to stand out at all */
-.markdown h5, .markdown h6 {
-  text-shadow: 1px 0 currentColor;
-}
-.markdown p, .markdown pre, .markdown table { margin: 0.5em 0; }
-.markdown ul { list-style: disc; margin: 0.5em 0; padding-left: 1.5em; }
+.markdown p, .markdown pre, .markdown table { margin-block: 0.5em; }
+.markdown ul { list-style: disc; margin-block: 0.5em; padding-inline-start: 1.5em; }
 /* wider than ul: "10." markers hang left of the padding edge and would clip */
-.markdown ol { list-style: decimal; margin: 0.5em 0; padding-left: 2.5em; }
-.markdown blockquote { border-left: 4px solid #000; padding-left: 0.5em; margin: 0.5em 0; }
-.markdown hr { border-top: 3px solid #000; margin: 0.5em 0; }
-.markdown pre { white-space: pre-wrap; font-family: inherit; border: 1px solid #000; padding: 2px 4px; }
+.markdown ol { list-style: decimal; margin-block: 0.5em; padding-inline-start: 2.5em; }
+.markdown blockquote { border-inline-start: 0.25em solid #000; padding-inline-start: 0.5em; margin-block: 0.5em; }
+/* preflight zeroes hr's height — which is its *length*, not its thickness, once
+   the banner turns the page sideways — so drive both axes logically instead.
+   3/16 em: an exact 3px at the bitmap mode's 16px, and still scales for the banner */
+.markdown hr { border: 0 solid #000; border-block-start-width: 0.1875em; block-size: 0; inline-size: auto; margin-block: 0.5em; }
+.markdown pre { white-space: pre-wrap; font-family: inherit; border: 1px solid #000; padding-block: 0.125em; padding-inline: 0.25em; }
 .markdown code {
   font-family: inherit;
   border: 1px solid #000;
-  padding: 0 2px;
+  padding-inline: 0.125em;
 }
 .markdown pre code { border: none; padding: 0; }
 .markdown a { text-decoration: underline; }
-/* bitmap font: synthetic bold thresholds unevenly, synthetic italic looks mangled */
-.markdown strong, .markdown b {
+.markdown th, .markdown td { border: 1px solid #000; padding-inline: 0.25em; }
+.markdown > :first-child { margin-block-start: 0; }
+.markdown > :last-child { margin-block-end: 0; }
+
+/* `small`: the 16px IBM VGA bitmap. Heading sizes stay integer multiples of it,
+   because the 9px glyph advance goes off the pixel grid at fractional scales and
+   thresholds into alternately fat and thin stems. Weight comes from a 1px shadow
+   for the same reason — synthetic bold smears the bitmap. */
+.markdown-bitmap :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: normal;
+  /* rem, not em: a proportional gap under a 3em heading is 24px of air, and
+     only below it — the first-child rule drops the matching one above.
+     line-height 1 for the same reason, plus it keeps every line box a whole
+     number of pixels, so no baseline below a heading lands on a half pixel */
+  margin-block: 0.5rem;
+  line-height: 1;
+}
+.markdown-bitmap h1 { font-size: 3em; }
+.markdown-bitmap h2 { font-size: 2em; text-shadow: 1px 0 currentColor; }
+.markdown-bitmap h3 { font-size: 2em; }
+/* body-sized headings need the crisp shadow-bold to stand out at all */
+.markdown-bitmap :is(h4, h5, h6) {
+  text-shadow: 1px 0 currentColor;
+}
+.markdown-bitmap :is(strong, b) {
   font-weight: normal;
   text-shadow: 1px 0 currentColor;
 }
-.markdown em, .markdown i {
+/* synthetic italic mangles a bitmap face */
+.markdown-bitmap :is(em, i) {
   font-style: normal;
   text-decoration: underline;
 }
-.markdown th, .markdown td { border: 1px solid #000; padding: 0 0.25em; }
-.markdown > :first-child { margin-top: 0; }
-.markdown > :last-child { margin-bottom: 0; }
+
+/* `medium` and `large`: outlines instead of a bitmap, so real weights and real
+   italics are back on the table and headings can sit at proportional sizes */
+.markdown-proportional :is(h1, h2, h3, h4, h5, h6) {
+  font-family: "Roboto Slab", Georgia, serif;
+  font-weight: 700;
+  margin-block: 0.4em;
+  line-height: 1.1;
+}
+.markdown-proportional h1 { font-size: 2em; }
+.markdown-proportional h2 { font-size: 1.6em; }
+.markdown-proportional h3 { font-size: 1.35em; }
+.markdown-proportional h4 { font-size: 1.15em; }
+.markdown-proportional :is(h5, h6) { font-size: 1em; }
+.markdown-proportional :is(strong, b) { font-weight: 700; }
+.markdown-proportional :is(em, i) { font-style: italic; }
+
+/* `large` only: an image's block extent competes with the text lines for the
+   paper's width, so give it a share measured in the same em everything else is */
+.markdown-banner img { block-size: 6em; inline-size: auto; }
 
 @layer utilities {
   .text-retro {
     text-rendering: geometricPrecision;
     font-smooth: never;
     -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* The printer knows one colour, so colour-fringed subpixel coverage is worse
+     than useless: force plain grayscale coverage (and unhinted outlines, so
+     glyphs sit where the metrics say) for the threshold in renderText() to cut
+     into pure black and white. */
+  .text-print {
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }

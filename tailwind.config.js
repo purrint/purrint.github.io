@@ -5,6 +5,7 @@ export default {
     extend: {
       fontFamily: {
         ibm: ['"IBM VGA 9x16"', '"Courier New"', "Courier", "monospace"],
+        roboto: ["Roboto", "Helvetica", "Arial", "sans-serif"],
       },
       dropShadow: {
         purr: "6px 6px rgba(0, 0, 0, 0.4)",
