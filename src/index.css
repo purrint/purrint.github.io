@@ -51,8 +51,9 @@
 
 /* Tailwind preflight resets these; restore for printed Markdown.
    Everything below is em-based and written in logical properties: `large` turns
-   the whole page sideways with writing-mode, and logical margins/borders stack
-   its lines across the paper the way the upright modes stack theirs down it.
+   the whole page sideways with writing-mode: vertical-rl, and logical
+   margins/borders stack its lines across the paper the way the upright modes
+   stack theirs down it.
    The em units are also what let fitBanner() solve for the font size by
    scaling — see PurrintApp.tsx. */
 .markdown {
@@ -92,11 +93,12 @@
   margin-block: 0.5rem;
   line-height: 1;
 }
-.markdown-bitmap h1 { font-size: 3em; }
-.markdown-bitmap h2 { font-size: 2em; text-shadow: 1px 0 currentColor; }
-.markdown-bitmap h3 { font-size: 2em; }
+.markdown-bitmap h1 { font-size: 5em; }
+.markdown-bitmap h2 { font-size: 4em; }
+.markdown-bitmap h3 { font-size: 3em; }
+.markdown-bitmap h4 { font-size: 2em; }
 /* body-sized headings need the crisp shadow-bold to stand out at all */
-.markdown-bitmap :is(h4, h5, h6) {
+.markdown-bitmap :is(h5, h6) {
   text-shadow: 1px 0 currentColor;
 }
 .markdown-bitmap :is(strong, b) {

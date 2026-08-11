@@ -483,10 +483,13 @@ async function renderText(text: string, size: TextSize): Promise<ImageData> {
     `font-size:${style.fontSize}px`,
     `line-height:${style.lineHeight}`,
     style.banner
-      ? // vertical-lr turns the paper sideways: lines stack across its width and
-        // run down its length. A max-content inline size stops them wrapping, so
-        // the line count is whatever the text says and fitBanner() can size to it
-        "writing-mode:vertical-lr;inline-size:max-content"
+      ? // vertical-rl turns the paper sideways: lines stack across its width and
+        // run down its length. rl, not lr: the glyphs rotate clockwise, so the
+        // roll is read by turning it counter-clockwise, which brings its right
+        // edge up top — that has to be where the first line sits.
+        // A max-content inline size stops lines wrapping, so the line count is
+        // whatever the text says and fitBanner() can size to it
+        "writing-mode:vertical-rl;inline-size:max-content"
       : // padding-left matches the textarea's pl-[1px] so preview aligns with raw text
         `inline-size:${WIDTH}px;padding-left:1px`,
   ].join(";");
