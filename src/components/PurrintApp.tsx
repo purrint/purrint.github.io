@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { marked } from "marked";
 import { toCanvas } from "html-to-image";
-import { dither, renderImage } from "../services/render.ts";
+import { dither, loadImage, renderImage } from "../services/render.ts";
 import { printImage } from "../services/printer.ts";
 import icon from "../assets/icon.svg";
 
@@ -13,6 +13,7 @@ const MAX_BANNER_LENGTH = 8192;
 
 type Mode = "image" | "text";
 type TextSize = "small" | "medium" | "large";
+type ImageOrientation = "vertical" | "horizontal";
 
 type TextStyle = {
   /* Markdown stylesheet variant, see index.css */
@@ -38,7 +39,9 @@ const TEXT_STYLES: Record<TextSize, TextStyle> = {
   medium: {
     markdown: "markdown-proportional",
     font: "font-roboto text-print",
-    fontSize: 24,
+    // 2× the bitmap mode, ~24 characters to a line: large enough to read at
+    // arm's length off a 48mm roll without shredding prose into two-word lines
+    fontSize: 32,
     lineHeight: 1.25,
     banner: false,
   },
@@ -56,13 +59,17 @@ const TEXT_STYLES: Record<TextSize, TextStyle> = {
   },
 };
 const TEXT_SIZES = ["small", "medium", "large"] as const;
+const IMAGE_ORIENTATIONS = ["vertical", "horizontal"] as const;
 
 export default function PurrintApp() {
   const previewCanvas = useRef<HTMLCanvasElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const textArea = useRef<HTMLTextAreaElement>(null);
 
+  const [photoImage, setPhotoImage] = useState<HTMLImageElement>();
   const [photoImageData, setPhotoImageData] = useState<ImageData>();
+  const [imageOrientation, setImageOrientation] =
+    useState<ImageOrientation>("vertical");
   const [textImageData, setTextImageData] = useState<ImageData>();
   const [isBluetoothAvailable] = useState("bluetooth" in navigator);
   const [mode, setMode] = useState<Mode>("image");
@@ -71,19 +78,36 @@ export default function PurrintApp() {
 
   const textStyle = TEXT_STYLES[textSize];
 
-  function handleFile(file: File) {
-    if (!previewCanvas.current) {
+  async function handleFile(file: File) {
+    try {
+      const image = await loadImage(file);
+      // a landscape shot is the one worth turning sideways: upright it gets
+      // squeezed into 384px, sideways it gets the whole length of the roll
+      setImageOrientation(
+        image.width > image.height ? "horizontal" : "vertical"
+      );
+      setPhotoImage(image);
+    } catch (error) {
+      console.error("Rendering failed:", error);
+      alert("Rendering failed. See console for details.");
+    }
+  }
+
+  useEffect(() => {
+    if (!photoImage || !previewCanvas.current) {
       return;
     }
-    renderImage(file, previewCanvas.current)
-      .then((imageData) => {
-        setPhotoImageData(imageData);
-      })
-      .catch((error) => {
-        console.error("Rendering failed:", error);
-        alert("Rendering failed. See console for details.");
-      });
-  }
+    try {
+      setPhotoImageData(
+        renderImage(photoImage, previewCanvas.current, {
+          rotate: imageOrientation === "horizontal",
+        })
+      );
+    } catch (error) {
+      console.error("Rendering failed:", error);
+      alert("Rendering failed. See console for details.");
+    }
+  }, [photoImage, imageOrientation]);
 
   function onImageInputChange(event: React.ChangeEvent<HTMLInputElement>) {
     if (event.target.files?.length) {
@@ -96,7 +120,7 @@ export default function PurrintApp() {
       const canvas = document.createElement("canvas");
       // WIDTH-1 = render content width (1px caret padding), so the dithered
       // bitmap is never rescaled and survives the final dither untouched
-      await renderImage(file, canvas, WIDTH - 1);
+      renderImage(await loadImage(file), canvas, { width: WIDTH - 1 });
       const markdown = `![](${canvas.toDataURL("image/png")})`;
       if (textImageData) {
         setTextImageData(undefined);
@@ -270,10 +294,23 @@ export default function PurrintApp() {
 
   const modeToggleButtonBase =
     "font-ibm border-[3px] border-black p-3 text-base leading-none";
-  const sizeToggleButtonBase =
+  const subModeButtonBase =
     "font-ibm border-[3px] border-black px-3 py-2 text-sm capitalize leading-none";
   const toggleColors = (selected: boolean) =>
     selected ? "bg-black text-white" : "bg-white text-black";
+  // both modes carry a row of sub-mode buttons; only the options differ
+  const subModes: { label: string; selected: boolean; select: () => void }[] =
+    mode === "text"
+      ? TEXT_SIZES.map((size) => ({
+          label: size,
+          selected: textSize === size,
+          select: () => setTextSize(size),
+        }))
+      : IMAGE_ORIENTATIONS.map((orientation) => ({
+          label: orientation,
+          selected: imageOrientation === orientation,
+          select: () => setImageOrientation(orientation),
+        }));
 
   return (
     <>
@@ -310,23 +347,18 @@ export default function PurrintApp() {
         </button>
       </div>
 
-      {mode === "text" && (
-        <div className="flex justify-center gap-2">
-          {TEXT_SIZES.map((size) => (
-            <button
-              key={size}
-              type="button"
-              className={[
-                sizeToggleButtonBase,
-                toggleColors(textSize === size),
-              ].join(" ")}
-              onClick={() => setTextSize(size)}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex justify-center gap-2">
+        {subModes.map(({ label, selected, select }) => (
+          <button
+            key={label}
+            type="button"
+            className={[subModeButtonBase, toggleColors(selected)].join(" ")}
+            onClick={select}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="box-border border-[3px] border-black bg-white p-[5px] drop-shadow-purr">
         <div
