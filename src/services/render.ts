@@ -1,36 +1,59 @@
-export async function renderImage(
-  file: File,
-  previewCanvas: HTMLCanvasElement,
-  width = 384
-): Promise<ImageData> {
+export function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
-      img.onload = () => {
-        const newWidth = width;
-        const newHeight = Math.floor(img.height * (newWidth / img.width));
-
-        previewCanvas.width = newWidth;
-        previewCanvas.height = newHeight;
-
-        const ctx = previewCanvas.getContext("2d", {
-          willReadFrequently: true,
-        })!;
-
-        ctx.drawImage(img, 0, 0, newWidth, newHeight);
-
-        const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
-        dither(imageData);
-        ctx.putImageData(imageData, 0, 0);
-        resolve(imageData);
-      };
+      img.onload = () => resolve(img);
       img.onerror = reject;
       img.src = event.target!.result as string;
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+type RenderOptions = {
+  width?: number;
+  /* Turn the image a quarter turn clockwise, so its long side runs down the
+     roll instead of being squeezed into the roll's width. Clockwise to match
+     the sideways text mode: both are read by turning the paper the same way. */
+  rotate?: boolean;
+};
+
+export function renderImage(
+  image: HTMLImageElement,
+  previewCanvas: HTMLCanvasElement,
+  { width = 384, rotate = false }: RenderOptions = {}
+): ImageData {
+  // rotating swaps which side of the source has to fit the roll's width
+  const scale = width / (rotate ? image.height : image.width);
+
+  // assigning either dimension resets the context, transform included
+  previewCanvas.width = width;
+  previewCanvas.height = Math.floor(
+    (rotate ? image.width : image.height) * scale
+  );
+
+  const ctx = previewCanvas.getContext("2d", {
+    willReadFrequently: true,
+  })!;
+
+  if (rotate) {
+    // maps a drawn (u, v) to (width - v, u): a quarter turn clockwise about the
+    // canvas centre, which lands the source's top edge along the right one
+    ctx.setTransform(0, 1, -1, 0, width, 0);
+  }
+  ctx.drawImage(image, 0, 0, image.width * scale, image.height * scale);
+
+  const imageData = ctx.getImageData(
+    0,
+    0,
+    previewCanvas.width,
+    previewCanvas.height
+  );
+  dither(imageData);
+  ctx.putImageData(imageData, 0, 0);
+  return imageData;
 }
 
 export function dither(imageData: ImageData) {

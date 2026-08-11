@@ -1,42 +1,113 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { marked } from "marked";
 import { toCanvas } from "html-to-image";
-import { dither, renderImage } from "../services/render.ts";
+import { dither, loadImage, renderImage } from "../services/render.ts";
 import { printImage } from "../services/printer.ts";
 import icon from "../assets/icon.svg";
 
 const WIDTH = 384;
-const FONT_SIZE = 16;
-// 18px line boxes: fractional ones (16 × 1.15 = 18.4) put every other baseline
-// on a half pixel, which the bitmap font renders as alternately fat and thin rows
-const LINE_HEIGHT_RATIO = 1.125;
+// ~1 m of paper at 8 dots/mm. `large` scales type up until the lines fill the
+// paper's width, so a two-word message would otherwise print until the roll runs
+// out — and blow past the browser's canvas dimension limit on the way
+const MAX_BANNER_LENGTH = 8192;
 
 type Mode = "image" | "text";
+type TextSize = "small" | "medium" | "large";
+type ImageOrientation = "vertical" | "horizontal";
+
+type TextStyle = {
+  /* Markdown stylesheet variant, see index.css */
+  markdown: string;
+  /* face + rasterization, shared by the editor and the rendered bitmap */
+  font: string;
+  fontSize: number;
+  lineHeight: number;
+  banner: boolean;
+};
+
+const TEXT_STYLES: Record<TextSize, TextStyle> = {
+  small: {
+    markdown: "markdown-bitmap",
+    font: "font-ibm text-retro",
+    fontSize: 16,
+    // 18px line boxes: fractional ones (16 × 1.15 = 18.4) put every other
+    // baseline on a half pixel, which the bitmap font renders as alternately
+    // fat and thin rows
+    lineHeight: 1.125,
+    banner: false,
+  },
+  medium: {
+    markdown: "markdown-proportional",
+    font: "font-roboto text-print",
+    // 2× the bitmap mode, ~24 characters to a line: large enough to read at
+    // arm's length off a 48mm roll without shredding prose into two-word lines
+    fontSize: 32,
+    lineHeight: 1.25,
+    banner: false,
+  },
+  large: {
+    markdown: "markdown-proportional markdown-banner",
+    font: "font-roboto text-print",
+    // a starting point only — fitBanner() rescales this until the lines fill
+    // the paper. It is still what the editor types at.
+    fontSize: 24,
+    // don't tighten this: a line box is what fills the paper, so the outer half
+    // of the leading is the only thing keeping the first line's tallest ink
+    // (Ú, Ř — 0.93em in Roboto against a 1.25em box) inside the paper's edge
+    lineHeight: 1.25,
+    banner: true,
+  },
+};
+const TEXT_SIZES = ["small", "medium", "large"] as const;
+const IMAGE_ORIENTATIONS = ["vertical", "horizontal"] as const;
 
 export default function PurrintApp() {
   const previewCanvas = useRef<HTMLCanvasElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const textArea = useRef<HTMLTextAreaElement>(null);
 
+  const [photoImage, setPhotoImage] = useState<HTMLImageElement>();
   const [photoImageData, setPhotoImageData] = useState<ImageData>();
+  const [imageOrientation, setImageOrientation] =
+    useState<ImageOrientation>("vertical");
   const [textImageData, setTextImageData] = useState<ImageData>();
   const [isBluetoothAvailable] = useState("bluetooth" in navigator);
   const [mode, setMode] = useState<Mode>("image");
+  const [textSize, setTextSize] = useState<TextSize>("small");
   const [textInput, setTextInput] = useState("");
 
-  function handleFile(file: File) {
-    if (!previewCanvas.current) {
+  const textStyle = TEXT_STYLES[textSize];
+
+  async function handleFile(file: File) {
+    try {
+      const image = await loadImage(file);
+      // a landscape shot is the one worth turning sideways: upright it gets
+      // squeezed into 384px, sideways it gets the whole length of the roll
+      setImageOrientation(
+        image.width > image.height ? "horizontal" : "vertical"
+      );
+      setPhotoImage(image);
+    } catch (error) {
+      console.error("Rendering failed:", error);
+      alert("Rendering failed. See console for details.");
+    }
+  }
+
+  useEffect(() => {
+    if (!photoImage || !previewCanvas.current) {
       return;
     }
-    renderImage(file, previewCanvas.current)
-      .then((imageData) => {
-        setPhotoImageData(imageData);
-      })
-      .catch((error) => {
-        console.error("Rendering failed:", error);
-        alert("Rendering failed. See console for details.");
-      });
-  }
+    try {
+      setPhotoImageData(
+        renderImage(photoImage, previewCanvas.current, {
+          rotate: imageOrientation === "horizontal",
+        })
+      );
+    } catch (error) {
+      console.error("Rendering failed:", error);
+      alert("Rendering failed. See console for details.");
+    }
+  }, [photoImage, imageOrientation]);
 
   function onImageInputChange(event: React.ChangeEvent<HTMLInputElement>) {
     if (event.target.files?.length) {
@@ -49,7 +120,7 @@ export default function PurrintApp() {
       const canvas = document.createElement("canvas");
       // WIDTH-1 = render content width (1px caret padding), so the dithered
       // bitmap is never rescaled and survives the final dither untouched
-      await renderImage(file, canvas, WIDTH - 1);
+      renderImage(await loadImage(file), canvas, { width: WIDTH - 1 });
       const markdown = `![](${canvas.toDataURL("image/png")})`;
       if (textImageData) {
         setTextImageData(undefined);
@@ -109,7 +180,9 @@ export default function PurrintApp() {
     textareaElement.style.height = "auto";
     const measuredHeight = textareaElement.scrollHeight;
     textareaElement.style.height = `${measuredHeight}px`;
-  }, [mode, textInput, textImageData]);
+    // textSize: switching it changes the editor's own type size, so the text
+    // needs re-measuring even though it hasn't changed
+  }, [mode, textInput, textImageData, textSize]);
 
   useEffect(() => {
     if (mode === "text" && !textImageData) {
@@ -122,7 +195,7 @@ export default function PurrintApp() {
       return;
     }
     try {
-      const imageData = await renderText(textInput);
+      const imageData = await renderText(textInput, textSize);
       // user may have refocused while rendering; don't yank the editor away
       if (document.activeElement !== textArea.current) {
         setTextImageData(imageData);
@@ -131,6 +204,28 @@ export default function PurrintApp() {
       console.error("Rendering failed:", error);
     }
   }
+
+  useEffect(() => {
+    // the preview is a snapshot, so a size switch has to redraw it. Keyed on
+    // textSize alone: textImageData is what the effect writes, and depending on
+    // it would loop
+    if (!textImageData) {
+      return;
+    }
+    let current = true;
+    renderText(textInput, textSize)
+      .then((imageData) => {
+        if (current) {
+          setTextImageData(imageData);
+        }
+      })
+      .catch((error) => {
+        console.error("Rendering failed:", error);
+      });
+    return () => {
+      current = false;
+    };
+  }, [textSize]);
 
   useEffect(() => {
     function onPaste(event: ClipboardEvent) {
@@ -173,7 +268,8 @@ export default function PurrintApp() {
 
       try {
         // textImageData may lag behind the blur this click just caused
-        const imageData = textImageData ?? (await renderText(textInput));
+        const imageData =
+          textImageData ?? (await renderText(textInput, textSize));
         await printImage(imageData);
       } catch (error) {
         console.error("Printing failed:", error);
@@ -198,6 +294,23 @@ export default function PurrintApp() {
 
   const modeToggleButtonBase =
     "font-ibm border-[3px] border-black p-3 text-base leading-none";
+  const subModeButtonBase =
+    "font-ibm border-[3px] border-black px-3 py-2 text-sm capitalize leading-none";
+  const toggleColors = (selected: boolean) =>
+    selected ? "bg-black text-white" : "bg-white text-black";
+  // both modes carry a row of sub-mode buttons; only the options differ
+  const subModes: { label: string; selected: boolean; select: () => void }[] =
+    mode === "text"
+      ? TEXT_SIZES.map((size) => ({
+          label: size,
+          selected: textSize === size,
+          select: () => setTextSize(size),
+        }))
+      : IMAGE_ORIENTATIONS.map((orientation) => ({
+          label: orientation,
+          selected: imageOrientation === orientation,
+          select: () => setImageOrientation(orientation),
+        }));
 
   return (
     <>
@@ -216,28 +329,35 @@ export default function PurrintApp() {
       <div className="flex justify-center gap-3">
         <button
           type="button"
-          className={[
-            modeToggleButtonBase,
-            mode === "image" ? "bg-black text-white" : "bg-white text-black",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          className={[modeToggleButtonBase, toggleColors(mode === "image")].join(
+            " "
+          )}
           onClick={() => setMode("image")}
         >
           Image
         </button>
         <button
           type="button"
-          className={[
-            modeToggleButtonBase,
-            mode === "text" ? "bg-black text-white" : "bg-white text-black",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          className={[modeToggleButtonBase, toggleColors(mode === "text")].join(
+            " "
+          )}
           onClick={() => setMode("text")}
         >
           Text
         </button>
+      </div>
+
+      <div className="flex justify-center gap-2">
+        {subModes.map(({ label, selected, select }) => (
+          <button
+            key={label}
+            type="button"
+            className={[subModeButtonBase, toggleColors(selected)].join(" ")}
+            onClick={select}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="box-border border-[3px] border-black bg-white p-[5px] drop-shadow-purr">
@@ -279,11 +399,15 @@ export default function PurrintApp() {
               ref={textArea}
               className={[
                 "pl-[1px] min-h-[180px] w-full resize-none outline-none",
+                textStyle.font,
                 textImageData ? "hidden" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
-              style={{ lineHeight: LINE_HEIGHT_RATIO }}
+              style={{
+                fontSize: textStyle.fontSize,
+                lineHeight: textStyle.lineHeight,
+              }}
               placeholder="Type your message here…"
               value={textInput}
               onChange={(event) => setTextInput(event.target.value)}
@@ -348,16 +472,59 @@ function inlineFontSizes(root: HTMLElement) {
   });
 }
 
-async function renderText(text: string): Promise<ImageData> {
+// `large` sizes the type so that the text's lines exactly span the paper's
+// width: one line means a line box 384px thick, two means 192px each. Every
+// length in the Markdown styles is em-based, so the stacked height of the lines
+// scales with the font size and each pass is one step of a division — what keeps
+// it from being a single one is the handful of lengths that don't scale (1px
+// borders) plus layout rounding.
+function fitBanner(container: HTMLElement) {
+  let fontSize = parseFloat(container.style.fontSize);
+  for (let pass = 0; pass < 4; pass++) {
+    const { width, height } = container.getBoundingClientRect();
+    if (width < 1) {
+      return;
+    }
+    const scale = Math.min(WIDTH / width, MAX_BANNER_LENGTH / height);
+    if (Math.abs(scale - 1) < 0.001) {
+      break;
+    }
+    fontSize *= scale;
+    container.style.fontSize = `${fontSize}px`;
+  }
+  // never spill past the paper edge, even if the passes ran out mid-correction
+  const overshoot = container.getBoundingClientRect().width / WIDTH;
+  if (overshoot > 1) {
+    container.style.fontSize = `${fontSize / overshoot}px`;
+  }
+}
+
+async function renderText(text: string, size: TextSize): Promise<ImageData> {
+  const style = TEXT_STYLES[size];
   // offscreen positioning must live on a wrapper: html-to-image clones the
   // target's computed styles, so left:-9999px on the target itself would
   // push the content out of the snapshot
   const wrapper = document.createElement("div");
   wrapper.style.cssText = "position:fixed;left:-9999px;top:0";
   const container = document.createElement("div");
-  container.className = "markdown font-ibm text-retro";
-  // padding-left matches the textarea's pl-[1px] so preview aligns with raw text
-  container.style.cssText = `width:${WIDTH}px;box-sizing:border-box;padding-left:1px;background:#fff;color:#000;font-size:${FONT_SIZE}px;line-height:${LINE_HEIGHT_RATIO}`;
+  container.className = `markdown ${style.markdown} ${style.font}`;
+  container.style.cssText = [
+    "box-sizing:border-box",
+    "background:#fff",
+    "color:#000",
+    `font-size:${style.fontSize}px`,
+    `line-height:${style.lineHeight}`,
+    style.banner
+      ? // vertical-rl turns the paper sideways: lines stack across its width and
+        // run down its length. rl, not lr: the glyphs rotate clockwise, so the
+        // roll is read by turning it counter-clockwise, which brings its right
+        // edge up top — that has to be where the first line sits.
+        // A max-content inline size stops lines wrapping, so the line count is
+        // whatever the text says and fitBanner() can size to it
+        "writing-mode:vertical-rl;inline-size:max-content"
+      : // padding-left matches the textarea's pl-[1px] so preview aligns with raw text
+        `inline-size:${WIDTH}px;padding-left:1px`,
+  ].join(";");
   container.innerHTML = await marked.parse(text, { breaks: true });
   wrapper.append(container);
   document.body.append(wrapper);
@@ -368,6 +535,15 @@ async function renderText(text: string): Promise<ImageData> {
         img.decode().catch(() => img.remove())
       )
     );
+    // …and so must the webfonts, or a first render in a proportional mode gets
+    // measured — and, for the banner, sized — with fallback metrics. Reading
+    // layout is what makes the browser request them, so do that first and
+    // fonts.ready then has something to wait for.
+    container.getBoundingClientRect();
+    await document.fonts.ready;
+    if (style.banner) {
+      fitBanner(container);
+    }
     inlineFontSizes(container);
     const rendered = await toCanvas(container, {
       width: WIDTH,
