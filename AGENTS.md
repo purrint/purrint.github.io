@@ -22,6 +22,7 @@
    - Clicking `PURRINT!` sends the stored bitmap to `printImage`.
 3. **Text mode**  
    - The `<textarea>` grows vertically (`useLayoutEffect` measuring `scrollHeight`) and accepts Markdown.  
+   - A `Markdown` button in the sub-mode row switches the parsing off: `renderText` then drops the text in as `textContent` under `white-space: pre-wrap`, so it prints literally (markers, raw URLs, inserted image data URLs and all) while still wrapping at the paper's width.
    - A second toggle row picks one of three sub-modes, described by `TEXT_STYLES` in `PurrintApp.tsx` (Markdown stylesheet variant + font classes + size), which drives both the editor and the render:  
      - **Small** — 16px IBM VGA bitmap (`.markdown-bitmap`), headings stepping 5em/4em/3em/2em down to body size. Sizes stay integer multiples of 16px and weight comes from a 1px text-shadow, because the bitmap smears at fractional scales and under synthetic bold.  
      - **Medium** — 32px Roboto with Roboto Slab headings and Roboto Mono for code (`.markdown-proportional`), for readable body text.  

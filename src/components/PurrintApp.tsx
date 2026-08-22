@@ -74,6 +74,7 @@ export default function PurrintApp() {
   const [isBluetoothAvailable] = useState("bluetooth" in navigator);
   const [mode, setMode] = useState<Mode>("image");
   const [textSize, setTextSize] = useState<TextSize>("small");
+  const [isMarkdown, setIsMarkdown] = useState(true);
   const [textInput, setTextInput] = useState("");
 
   const textStyle = TEXT_STYLES[textSize];
@@ -195,7 +196,7 @@ export default function PurrintApp() {
       return;
     }
     try {
-      const imageData = await renderText(textInput, textSize);
+      const imageData = await renderText(textInput, textSize, isMarkdown);
       // user may have refocused while rendering; don't yank the editor away
       if (document.activeElement !== textArea.current) {
         setTextImageData(imageData);
@@ -206,14 +207,14 @@ export default function PurrintApp() {
   }
 
   useEffect(() => {
-    // the preview is a snapshot, so a size switch has to redraw it. Keyed on
-    // textSize alone: textImageData is what the effect writes, and depending on
-    // it would loop
+    // the preview is a snapshot, so a style switch has to redraw it. Keyed on
+    // the styles alone: textImageData is what the effect writes, and depending
+    // on it would loop
     if (!textImageData) {
       return;
     }
     let current = true;
-    renderText(textInput, textSize)
+    renderText(textInput, textSize, isMarkdown)
       .then((imageData) => {
         if (current) {
           setTextImageData(imageData);
@@ -225,7 +226,7 @@ export default function PurrintApp() {
     return () => {
       current = false;
     };
-  }, [textSize]);
+  }, [textSize, isMarkdown]);
 
   useEffect(() => {
     function onPaste(event: ClipboardEvent) {
@@ -269,7 +270,7 @@ export default function PurrintApp() {
       try {
         // textImageData may lag behind the blur this click just caused
         const imageData =
-          textImageData ?? (await renderText(textInput, textSize));
+          textImageData ?? (await renderText(textInput, textSize, isMarkdown));
         await printImage(imageData);
       } catch (error) {
         console.error("Printing failed:", error);
@@ -301,11 +302,18 @@ export default function PurrintApp() {
   // both modes carry a row of sub-mode buttons; only the options differ
   const subModes: { label: string; selected: boolean; select: () => void }[] =
     mode === "text"
-      ? TEXT_SIZES.map((size) => ({
-          label: size,
-          selected: textSize === size,
-          select: () => setTextSize(size),
-        }))
+      ? [
+          ...TEXT_SIZES.map((size) => ({
+            label: size,
+            selected: textSize === size,
+            select: () => setTextSize(size),
+          })),
+          {
+            label: "markdown",
+            selected: isMarkdown,
+            select: () => setIsMarkdown((value) => !value),
+          },
+        ]
       : IMAGE_ORIENTATIONS.map((orientation) => ({
           label: orientation,
           selected: imageOrientation === orientation,
@@ -499,7 +507,11 @@ function fitBanner(container: HTMLElement) {
   }
 }
 
-async function renderText(text: string, size: TextSize): Promise<ImageData> {
+async function renderText(
+  text: string,
+  size: TextSize,
+  markdown: boolean
+): Promise<ImageData> {
   const style = TEXT_STYLES[size];
   // offscreen positioning must live on a wrapper: html-to-image clones the
   // target's computed styles, so left:-9999px on the target itself would
@@ -525,7 +537,14 @@ async function renderText(text: string, size: TextSize): Promise<ImageData> {
       : // padding-left matches the textarea's pl-[1px] so preview aligns with raw text
         `inline-size:${WIDTH}px;padding-left:1px`,
   ].join(";");
-  container.innerHTML = await marked.parse(text, { breaks: true });
+  if (markdown) {
+    container.innerHTML = await marked.parse(text, { breaks: true });
+  } else {
+    // pre-wrap, not <pre>: the .markdown styles' box (border, padding) is for
+    // code, and lines still have to wrap at the paper's width
+    container.style.whiteSpace = "pre-wrap";
+    container.textContent = text;
+  }
   wrapper.append(container);
   document.body.append(wrapper);
   try {
