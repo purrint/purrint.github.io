@@ -9,7 +9,7 @@
 - **PurrintApp (`src/components/PurrintApp.tsx`)** holds the full UI, canvas references, drag/drop handling, and printing logic. Mode toggles drive conditional rendering of the preview canvas vs. the auto-resizing `<textarea>`.
 - **Services**  
   - `src/services/render.ts` decodes images via `FileReader` (`loadImage`), then `renderImage` constrains them to 384 px width — optionally rotating it a quarter turn clockwise first, so the long side runs down the roll — normalizes luminance, and applies Atkinson dithering to get binary pixels that match the printer's capabilities. The resulting `ImageData` is echoed back into the preview canvas.  
-  - `src/services/printer.ts` converts `ImageData` into horizontal scanlines, constructs MX06-specific command frames (0x51 0x78 header + CRC8), and streams them chunked (64 bytes) to the BLE characteristic `0000ae01-0000-1000-8000-00805f9b34fb`. It flips the bitmap horizontally to match the printer's coordinate system and inserts setup commands (energy, quality, lattice control, feeds) before sending rows.
+  - `src/services/printer.ts` converts `ImageData` into horizontal scanlines, constructs MX06-specific command frames (0x51 0x78 header + CRC8), and streams them chunked (64 bytes) to the BLE characteristic `0000ae01-0000-1000-8000-00805f9b34fb`. It reads each row right-to-left to match the printer's coordinate system and inserts setup commands (energy, quality, lattice control, feeds) before sending rows.
 - **Assets** include the mascot SVG (`src/assets/icon.svg`), an embedded WOFF of the IBM VGA font (`src/assets/WebPlus_IBM_VGA_9x16.woff`) referenced both by CSS and the `<img>` mascot in the UI, and self-hosted WOFF2 subsets of Roboto, Roboto Slab and Roboto Mono (latin + latin-ext) for the proportional text sub-modes' body, headings and code. The fonts are self-hosted rather than fetched from Google so the PWA works offline and `html-to-image` can inline them from our own origin; `vite.config.ts` widens the Workbox glob to precache them.
 
 ## UI & Interaction Flow
@@ -39,8 +39,9 @@
 ## Bluetooth Printing Pipeline (`src/services/printer.ts`)
 - Maintains a cached `BluetoothDevice` targeted by name filter `"MX06"` and optional service `0000ae30-0000-1000-8000-00805f9b34fb`.
 - The helper `formatCommand` builds framed commands with CRC8 (`crc8_table`) and the printer's `0x51 0x78` preamble. Commands include energy (`0xaf`), bitmap draw (`0xa2`), feed (`0xa1`/`0xbd`), print lattice start/stop (`0xa6`), and dithering quality (`0xa4`).
-- Each scanline packs 1 bit per pixel (`PRINTER_WIDTH / 8` bytes). Bits are inverted (1 = black) and reversed per byte to match the printer's expectation, then aggregated into the command stream.
-- Command bytes are chunked into 64-byte writes with small delays to avoid overwhelming the BLE characteristic.
+- Each scanline packs 1 bit per pixel (`PRINTER_WIDTH / 8` bytes). Bits are inverted (1 = black), and the row is read right-to-left into back-to-front bytes — the printer's coordinate system runs the other way, so `packRow` flips as it packs rather than copying the whole bitmap to flip it first.
+- `buildCommands` sizes the whole stream up front (every frame is `FRAME_OVERHEAD + data.length`, and a scanline's is fixed) and has `writeCommand` fill that one buffer in place. Keep it that way: the previous version concatenated a frame at a time, which recopied the entire stream once per scanline, and a page of text — thousands of scanlines — froze the tab for tens of seconds before the first byte went out.
+- Command bytes are chunked into 64-byte writes with small delays to avoid overwhelming the BLE characteristic. That pacing caps throughput at ~2.5 KB/s, so a long print legitimately takes minutes on the wire; it is awaited, so the UI stays responsive throughout.
 
 ## Styling and Manifest
 - Global styling resides in `src/index.css`, giving the retro receipt look (drop shadows, dashed notice, button hover translations). The CSS hides the preview canvas until an image exists, and uses nested rules for clarity.
