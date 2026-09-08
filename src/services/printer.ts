@@ -60,45 +60,91 @@ function crc8(data: Uint8Array): number {
   return crc & 0xff;
 }
 
-function formatCommand(
-  command: Uint8Array,
-  data: Uint8Array | number
-): Uint8Array {
-  if (typeof data === "number") {
-    const buffer = new ArrayBuffer(2);
-    new DataView(buffer).setUint16(0, data, true);
-    data = new Uint8Array(buffer);
-  }
+// framing: 0x51 0x78, command, 0x00, length, 0x00, <data>, crc, 0x00
+const FRAME_OVERHEAD = 8;
+const LINE_BYTES = PRINTER_WIDTH / 8;
+// one DRAW_BITMAP frame per scanline
+const ROW_FRAME = FRAME_OVERHEAD + LINE_BYTES;
+const CHUNK_SIZE = 64;
 
-  const crc = crc8(data as Uint8Array);
-  const payload = new Uint8Array([
-    command[0],
-    0x00,
-    (data as Uint8Array).length,
-    0x00,
-    ...(data as Uint8Array),
-    crc,
-    0x00,
-  ]);
-
-  const fullCommand = new Uint8Array([0x51, 0x78, ...payload]);
-  return fullCommand;
+function uint16(value: number): Uint8Array {
+  const buffer = new ArrayBuffer(2);
+  new DataView(buffer).setUint16(0, value, true);
+  return new Uint8Array(buffer);
 }
 
-function flipImageDataHorizontally(imageData: ImageData): ImageData {
-  const { width, height, data } = imageData;
-  const flippedData = new Uint8ClampedArray(data.length);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const originalIndex = (y * width + x) * 4;
-      const flippedIndex = (y * width + (width - 1 - x)) * 4;
-      flippedData[flippedIndex] = data[originalIndex];
-      flippedData[flippedIndex + 1] = data[originalIndex + 1];
-      flippedData[flippedIndex + 2] = data[originalIndex + 2];
-      flippedData[flippedIndex + 3] = data[originalIndex + 3];
+/* Writes one framed command into `target` at `offset` and returns the offset
+   just past it. Writing in place rather than returning a fresh array is what
+   keeps assembling a long print linear: concatenating a frame at a time copied
+   the whole command stream once per scanline, so a page of text — thousands of
+   scanlines — locked the tab up for tens of seconds before the first byte went
+   out. */
+function writeCommand(
+  target: Uint8Array,
+  offset: number,
+  command: Uint8Array,
+  data: Uint8Array
+): number {
+  target[offset] = 0x51;
+  target[offset + 1] = 0x78;
+  target[offset + 2] = command[0];
+  target[offset + 3] = 0x00;
+  target[offset + 4] = data.length;
+  target[offset + 5] = 0x00;
+  target.set(data, offset + 6);
+  target[offset + 6 + data.length] = crc8(data);
+  target[offset + 7 + data.length] = 0x00;
+  return offset + FRAME_OVERHEAD + data.length;
+}
+
+/* Packs scanline `y` into `line`: 1 bit per pixel, 1 = black. The printer's
+   coordinate system runs the other way, so the row is read right-to-left and
+   the bytes are laid down back-to-front — flipping as we pack, instead of
+   copying the whole bitmap to flip it first. */
+function packRow(imageData: ImageData, y: number, line: Uint8Array) {
+  const { width, data } = imageData;
+  line.fill(0);
+  const columns = Math.min(width, PRINTER_WIDTH);
+  for (let x = 0; x < columns; x++) {
+    const index = (y * width + (width - 1 - x)) * 4;
+    if (data[index] === 0) {
+      line[LINE_BYTES - 1 - (x >> 3)] |= 1 << (7 - (x & 7));
     }
   }
-  return new ImageData(flippedData, width, height);
+}
+
+function buildCommands(imageData: ImageData): Uint8Array {
+  const setup: [Uint8Array, Uint8Array][] = [
+    [Command.SET_QUALITY, new Uint8Array([0x33])],
+    [Command.CONTROL_LATTICE, Lattice.PRINT],
+    [Command.SET_ENERGY, uint16(17500)],
+    [Command.DRAWING_MODE, new Uint8Array([0x00])],
+    [Command.OTHER_FEED_PAPER, PrintSpeed.IMAGE],
+  ];
+  const teardown: [Uint8Array, Uint8Array][] = [
+    [Command.CONTROL_LATTICE, Lattice.FINISH],
+    [Command.FEED_PAPER, uint16(50)],
+  ];
+
+  const framed = (frames: [Uint8Array, Uint8Array][]) =>
+    frames.reduce((total, [, data]) => total + FRAME_OVERHEAD + data.length, 0);
+  const commands = new Uint8Array(
+    framed(setup) + imageData.height * ROW_FRAME + framed(teardown)
+  );
+
+  let offset = 0;
+  for (const [command, data] of setup) {
+    offset = writeCommand(commands, offset, command, data);
+  }
+  const line = new Uint8Array(LINE_BYTES);
+  for (let y = 0; y < imageData.height; y++) {
+    packRow(imageData, y, line);
+    offset = writeCommand(commands, offset, Command.DRAW_BITMAP, line);
+  }
+  for (const [command, data] of teardown) {
+    offset = writeCommand(commands, offset, command, data);
+  }
+  return commands;
 }
 
 export async function printImage(imageData: ImageData) {
@@ -121,46 +167,10 @@ export async function printImage(imageData: ImageData) {
     "0000ae01-0000-1000-8000-00805f9b34fb"
   );
 
-  const flippedImageData = flipImageDataHorizontally(imageData);
+  const commands = buildCommands(imageData);
 
-  const imageBytes: number[] = [];
-  for (let y = 0; y < flippedImageData.height; y++) {
-    const line = new Uint8Array(PRINTER_WIDTH / 8);
-    for (let x = 0; x < flippedImageData.width; x++) {
-      const index = (y * flippedImageData.width + x) * 4;
-      const color = flippedImageData.data[index] === 0 ? 1 : 0; // Inverted, 1 is black
-      if (color) {
-        line[Math.floor(x / 8)] |= 1 << (7 - (x % 8));
-      }
-    }
-    imageBytes.push(...line.reverse());
-  }
-
-  let commands = new Uint8Array([
-    ...formatCommand(Command.SET_QUALITY, new Uint8Array([0x33])),
-    ...formatCommand(Command.CONTROL_LATTICE, Lattice.PRINT),
-    ...formatCommand(Command.SET_ENERGY, 17500),
-    ...formatCommand(Command.DRAWING_MODE, new Uint8Array([0x00])),
-    ...formatCommand(Command.OTHER_FEED_PAPER, PrintSpeed.IMAGE),
-  ]);
-
-  for (let i = 0; i < imageBytes.length; i += PRINTER_WIDTH / 8) {
-    const chunk = imageBytes.slice(i, i + PRINTER_WIDTH / 8);
-    commands = new Uint8Array([
-      ...commands,
-      ...formatCommand(Command.DRAW_BITMAP, new Uint8Array(chunk)),
-    ]);
-  }
-
-  commands = new Uint8Array([
-    ...commands,
-    ...formatCommand(Command.CONTROL_LATTICE, Lattice.FINISH),
-    ...formatCommand(Command.FEED_PAPER, 50),
-  ]);
-
-  for (let i = 0; i < commands.length; i += 64) {
-    const chunk = commands.slice(i, i + 64);
-    await characteristic.writeValue(chunk);
+  for (let i = 0; i < commands.length; i += CHUNK_SIZE) {
+    await characteristic.writeValue(commands.slice(i, i + CHUNK_SIZE));
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
 }
